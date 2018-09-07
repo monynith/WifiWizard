@@ -31,6 +31,19 @@ import android.net.wifi.SupplicantState;
 import android.content.Context;
 import android.util.Log;
 
+import android.support.v4.content.ContextCompat;
+import android.support.v4.app.ActivityCompat;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.app.AlertDialog;
+import android.os.Bundle;
+import android.location.LocationManager;
+import android.content.Intent;
+import android.content.DialogInterface;
+import android.content.Context;
+import android.support.annotation.NonNull;
+import android.widget.Toast;
+import org.json.JSONException;
 
 public class WifiWizard extends CordovaPlugin {
 
@@ -54,6 +67,17 @@ public class WifiWizard extends CordovaPlugin {
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         super.initialize(cordova, webView);
         this.wifiManager = (WifiManager) cordova.getActivity().getSystemService(Context.WIFI_SERVICE);
+    }
+
+    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
+        switch (requestCode){
+            case 123:
+                if(grantResults[0] != PackageManager.PERMISSION_GRANTED){
+                }else {
+                    this.statusCheck();
+                }
+                break;
+        }
     }
 
     @Override
@@ -97,7 +121,18 @@ public class WifiWizard extends CordovaPlugin {
             return this.disconnect(callbackContext);
         }
         else if(action.equals(GET_CONNECTED_SSID)) {
-            return this.getConnectedSSID(callbackContext);
+            if (Build.VERSION.SDK_INT > 26){
+                if ( ContextCompat.checkSelfPermission( cordova.getActivity(), android.Manifest.permission.ACCESS_COARSE_LOCATION ) != PackageManager.PERMISSION_GRANTED ) {
+                    cordova.setActivityResultCallback(this);
+                    cordova.requestPermission( this, 123, android.Manifest.permission.ACCESS_COARSE_LOCATION );
+                    return true;
+                }else {
+                    this.statusCheck();
+                    return true;
+                }
+            }else {
+                return this.getConnectedSSID(callbackContext);
+            }
         }
         else {
             callbackContext.error("Incorrect action parameter: " + action);
@@ -565,6 +600,33 @@ public class WifiWizard extends CordovaPlugin {
             callbackContext.error(e.getMessage());
         }
         return false;
+    }
+
+    public void statusCheck() {
+        final LocationManager manager = (LocationManager) cordova.getActivity().getSystemService(Context.LOCATION_SERVICE);
+        if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            buildAlertMessageNoGps();
+        }else {
+            this.getConnectedSSID(this.callbackContext);
+        }
+    }
+
+    private void buildAlertMessageNoGps() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(cordova.getActivity());
+        builder.setMessage("Your GPS seems to be disabled, do you want to enable it?")
+            .setCancelable(false)
+            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                public void onClick(final DialogInterface dialog, final int id) {
+                    cordova.getActivity().startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                }
+            })
+            .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                public void onClick(final DialogInterface dialog, final int id) {
+                    dialog.cancel();
+                }
+            });
+        final AlertDialog alert = builder.create();
+        alert.show();
     }
 
 }
