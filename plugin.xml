@@ -42,6 +42,13 @@
 			</feature>
 		</config-file>
 		
+		<config-file target="*/Entitlements-Debug.plist" parent="com.apple.developer.networking.wifi-info">
+		    <true/>
+		</config-file>
+		<config-file target="*/Entitlements-Release.plist" parent="com.apple.developer.networking.wifi-info">
+		    <true/>
+		</config-file>
+		
 		<header-file src="src/ios/NXWWifiWizard.h"/>
 		<source-file src="src/ios/NXWWifiWizard.m"/>
 		<framework src="SystemConfiguration.framework" />
